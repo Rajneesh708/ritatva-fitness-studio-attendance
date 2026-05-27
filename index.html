@@ -19,27 +19,17 @@
       max-width: 480px;
       margin: 0 auto;
     }
-    /* Header */
-    .header {
-      background: #0F3F1F;
-      border-radius: 16px;
-      padding: 28px 20px;
+    /* Logo header */
+    .logo-header {
       text-align: center;
-      margin-bottom: 24px;
-      box-shadow: 0 4px 12px rgba(15, 63, 31, 0.15);
+      padding: 20px 0 10px;
+      margin-bottom: 16px;
     }
-    .header h1 {
-      color: #C9A86A;
-      font-size: 32px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      margin-bottom: 4px;
-    }
-    .header p {
-      color: #FFFFFF;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 1px;
+    .logo-header img {
+      max-width: 180px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
     }
 
     /* Mode tabs */
@@ -159,6 +149,58 @@
       font-size: 14px;
     }
 
+    /* Absence type radio */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .radio-option {
+      display: flex;
+      align-items: center;
+      padding: 14px 14px;
+      border: 1.5px solid #E5E0D0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: #FFFFFF;
+    }
+    .radio-option.selected {
+      border-color: #0F3F1F;
+      background: #F0F7F1;
+    }
+    .radio-option input {
+      margin-right: 12px;
+      accent-color: #0F3F1F;
+      width: 18px;
+      height: 18px;
+    }
+    .radio-option label {
+      flex: 1;
+      font-size: 15px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    /* Date range */
+    .date-range {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .date-range.visible {
+      display: grid;
+    }
+    .date-range > div { display: flex; flex-direction: column; }
+    .date-range label {
+      font-size: 12px;
+      color: #666666;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
     /* Submit button */
     .submit-btn {
       width: 100%;
@@ -244,9 +286,8 @@
 <body>
   <div class="container">
 
-    <div class="header">
-      <h1>RITATVA</h1>
-      <p>FITNESS STUDIO</p>
+    <div class="logo-header">
+      <img src="logo.png" alt="Ritatva Fitness Studio" />
     </div>
 
     <div class="mode-tabs">
@@ -283,6 +324,13 @@
             <option value="7am">7:00 AM</option>
             <option value="8am">8:00 AM</option>
             <option value="9am">9:00 AM</option>
+            <option value="10am">10:00 AM</option>
+            <option value="11am">11:00 AM</option>
+            <option value="5:30pm">5:30 PM</option>
+            <option value="6:30pm">6:30 PM</option>
+            <option value="7:30pm">7:30 PM</option>
+            <option value="8:30pm">8:30 PM</option>
+            <option value="9:30pm">9:30 PM</option>
           </select>
         </div>
 
@@ -306,8 +354,28 @@
         </div>
 
         <div class="field">
-          <label class="label">Date You Won't Attend</label>
-          <input type="date" id="date-abs" class="input" />
+          <label class="label">When You Won't Attend</label>
+          <div class="radio-group">
+            <div class="radio-option selected" id="radio-opt-today" onclick="selectAbsenceType('today')">
+              <input type="radio" name="absence-type" value="today" id="absence-today" checked />
+              <label for="absence-today">I won't attend today</label>
+            </div>
+            <div class="radio-option" id="radio-opt-range" onclick="selectAbsenceType('range')">
+              <input type="radio" name="absence-type" value="range" id="absence-range" />
+              <label for="absence-range">I won't attend for multiple days</label>
+            </div>
+          </div>
+
+          <div class="date-range" id="date-range-block">
+            <div>
+              <label>From</label>
+              <input type="date" id="date-from" class="input" />
+            </div>
+            <div>
+              <label>To</label>
+              <input type="date" id="date-to" class="input" />
+            </div>
+          </div>
         </div>
 
         <div class="field">
@@ -318,6 +386,13 @@
             <option value="7am">7:00 AM</option>
             <option value="8am">8:00 AM</option>
             <option value="9am">9:00 AM</option>
+            <option value="10am">10:00 AM</option>
+            <option value="11am">11:00 AM</option>
+            <option value="5:30pm">5:30 PM</option>
+            <option value="6:30pm">6:30 PM</option>
+            <option value="7:30pm">7:30 PM</option>
+            <option value="8:30pm">8:30 PM</option>
+            <option value="9:30pm">9:30 PM</option>
           </select>
         </div>
 
@@ -346,16 +421,15 @@
     // Set today's date
     function setToday() {
       const today = new Date();
-      const dd = String(today.getDate()).padStart(2, '0');
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const yyyy = today.getFullYear();
       const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      const display = dd + " " + monthNames[today.getMonth()] + " " + yyyy;
+      const dd = String(today.getDate()).padStart(2, '0');
+      const display = dd + " " + monthNames[today.getMonth()] + " " + today.getFullYear();
       document.getElementById('today-date-1').textContent = display;
-      // Default absence date to tomorrow
+      // Default from/to dates for range
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
-      document.getElementById('date-abs').value = tomorrow.toISOString().split('T')[0];
+      document.getElementById('date-from').value = tomorrow.toISOString().split('T')[0];
+      document.getElementById('date-to').value = tomorrow.toISOString().split('T')[0];
     }
 
     // Switch between attendance and absence modes
@@ -364,6 +438,15 @@
       document.querySelector('[data-mode="' + mode + '"]').classList.add('active');
       document.getElementById('form-attendance').style.display = mode === 'attendance' ? 'block' : 'none';
       document.getElementById('form-absence').style.display = mode === 'absence' ? 'block' : 'none';
+    }
+
+    // Select absence type (today or range)
+    function selectAbsenceType(type) {
+      document.getElementById('radio-opt-today').classList.toggle('selected', type === 'today');
+      document.getElementById('radio-opt-range').classList.toggle('selected', type === 'range');
+      document.getElementById('absence-today').checked = type === 'today';
+      document.getElementById('absence-range').checked = type === 'range';
+      document.getElementById('date-range-block').classList.toggle('visible', type === 'range');
     }
 
     // Load members from Apps Script
@@ -384,7 +467,6 @@
       const input = document.getElementById(inputId);
       const suggestions = document.getElementById(suggestionsId);
       const mobileInput = document.getElementById(mobileId);
-      let selectedIndex = -1;
       let matches = [];
 
       input.addEventListener('input', () => {
@@ -414,7 +496,6 @@
           '</div>'
         ).join('');
         suggestions.classList.add('visible');
-        selectedIndex = -1;
 
         suggestions.querySelectorAll('.suggestion-item').forEach((item, i) => {
           item.addEventListener('click', () => {
@@ -448,10 +529,6 @@
       el.innerHTML = (type === 'loading' ? '<span class="spinner"></span>' : '') + message;
     }
 
-    function hideStatus(statusId) {
-      document.getElementById(statusId).className = 'status';
-    }
-
     async function submitAttendance() {
       const name = document.getElementById('name-att').value.trim();
       const mobile = document.getElementById('mobile-att').value.trim();
@@ -481,7 +558,6 @@
         
         if (data.success) {
           showStatus('status-att', 'success', '✓ Attendance marked successfully!');
-          // Clear form
           document.getElementById('name-att').value = '';
           document.getElementById('mobile-att').value = '';
           document.getElementById('batch-att').value = '';
@@ -496,26 +572,54 @@
     async function submitAbsence() {
       const name = document.getElementById('name-abs').value.trim();
       const mobile = document.getElementById('mobile-abs').value.trim();
-      const date = document.getElementById('date-abs').value;
       const batch = document.getElementById('batch-abs').value;
+      const absenceType = document.querySelector('input[name="absence-type"]:checked').value;
 
       if (!name) { showStatus('status-abs', 'error', 'Please enter your name'); return; }
       if (!members.some(m => m.name === name)) {
         showStatus('status-abs', 'error', 'Please select your name from suggestions');
         return;
       }
-      if (!date) { showStatus('status-abs', 'error', 'Please select the date'); return; }
       if (!batch) { showStatus('status-abs', 'error', 'Please select your batch'); return; }
 
-      showStatus('status-abs', 'loading', 'Submitting absence...');
+      let datesToSubmit = [];
+      if (absenceType === 'today') {
+        const today = new Date();
+        datesToSubmit.push(today.toISOString().split('T')[0]);
+      } else {
+        const fromStr = document.getElementById('date-from').value;
+        const toStr = document.getElementById('date-to').value;
+        if (!fromStr || !toStr) { 
+          showStatus('status-abs', 'error', 'Please select both From and To dates'); 
+          return; 
+        }
+        const fromDate = new Date(fromStr);
+        const toDate = new Date(toStr);
+        if (fromDate > toDate) {
+          showStatus('status-abs', 'error', '"From" date must be before "To" date');
+          return;
+        }
+        // Generate all dates in range
+        const current = new Date(fromDate);
+        while (current <= toDate) {
+          datesToSubmit.push(current.toISOString().split('T')[0]);
+          current.setDate(current.getDate() + 1);
+        }
+        if (datesToSubmit.length > 60) {
+          showStatus('status-abs', 'error', 'Date range cannot exceed 60 days');
+          return;
+        }
+      }
+
+      showStatus('status-abs', 'loading', 'Submitting absence for ' + datesToSubmit.length + ' day(s)...');
 
       try {
         const formData = new URLSearchParams();
         formData.append('action', 'absence');
         formData.append('name', name);
         formData.append('mobile', mobile);
-        formData.append('date', date);
         formData.append('batch', batch);
+        formData.append('dates', datesToSubmit.join(','));
 
         const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
@@ -524,10 +628,14 @@
         const data = await res.json();
         
         if (data.success) {
-          showStatus('status-abs', 'success', '✓ Absence reported successfully!');
+          const msg = datesToSubmit.length === 1 
+            ? '✓ Absence reported successfully!'
+            : '✓ Absence reported for ' + datesToSubmit.length + ' days!';
+          showStatus('status-abs', 'success', msg);
           document.getElementById('name-abs').value = '';
           document.getElementById('mobile-abs').value = '';
           document.getElementById('batch-abs').value = '';
+          selectAbsenceType('today');
         } else {
           showStatus('status-abs', 'error', data.error || 'Submission failed. Please try again.');
         }
