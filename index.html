@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0F3F1F" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Ritatva Fitness Studio</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -175,12 +178,24 @@
       accent-color: #0F3F1F;
       width: 18px;
       height: 18px;
+      flex-shrink: 0;
     }
     .radio-option label {
       flex: 1;
       font-size: 15px;
       cursor: pointer;
       font-weight: 500;
+      line-height: 1.4;
+    }
+    .radio-option label .date-hint {
+      display: block;
+      font-size: 12px;
+      color: #666666;
+      font-weight: 400;
+      margin-top: 2px;
+    }
+    .radio-option.selected label .date-hint {
+      color: #1E6B3A;
     }
 
     /* Date range */
@@ -200,6 +215,21 @@
       margin-bottom: 4px;
       font-weight: 500;
     }
+
+    /* Range summary */
+    .range-summary {
+      display: none;
+      background: #F0F7F1;
+      border: 1px solid #C9E5C9;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #1E6B3A;
+      line-height: 1.5;
+    }
+    .range-summary.visible { display: block; }
+    .range-summary strong { font-weight: 700; }
 
     /* Submit button */
     .submit-btn {
@@ -261,6 +291,20 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Connection warning */
+    .conn-warn {
+      display: none;
+      background: #FFF8E1;
+      border: 1px solid #FFE082;
+      color: #8C6D00;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      text-align: center;
+    }
+    .conn-warn.visible { display: block; }
+
     /* Footer */
     .footer {
       text-align: center;
@@ -290,6 +334,10 @@
       <img src="logo.png" alt="Ritatva Fitness Studio" />
     </div>
 
+    <div class="conn-warn" id="conn-warn">
+      ⚠️ Loading member list... If this stays for more than 10 seconds, please refresh the page.
+    </div>
+
     <div class="mode-tabs">
       <button class="tab-btn active" data-mode="attendance" onclick="switchMode('attendance')">
         ✓ I'm Here Today
@@ -312,8 +360,9 @@
         </div>
 
         <div class="field">
-          <label class="label">Mobile Number</label>
-          <input type="text" id="mobile-att" class="input locked" readonly placeholder="Auto-filled after name selection" />
+          <label class="label">Mobile Number <span style="color:#C73E1D; font-weight:400;">(must match our records)</span></label>
+          <input type="tel" id="mobile-att" class="input" inputmode="numeric" autocomplete="off" placeholder="Type 2-4 digits to search..." />
+          <div class="suggestions" id="mob-suggestions-att"></div>
         </div>
 
         <div class="field">
@@ -349,8 +398,9 @@
         </div>
 
         <div class="field">
-          <label class="label">Mobile Number</label>
-          <input type="text" id="mobile-abs" class="input locked" readonly placeholder="Auto-filled after name selection" />
+          <label class="label">Mobile Number <span style="color:#C73E1D; font-weight:400;">(must match our records)</span></label>
+          <input type="tel" id="mobile-abs" class="input" inputmode="numeric" autocomplete="off" placeholder="Type 2-4 digits to search..." />
+          <div class="suggestions" id="mob-suggestions-abs"></div>
         </div>
 
         <div class="field">
@@ -358,11 +408,17 @@
           <div class="radio-group">
             <div class="radio-option selected" id="radio-opt-today" onclick="selectAbsenceType('today')">
               <input type="radio" name="absence-type" value="today" id="absence-today" checked />
-              <label for="absence-today">I won't attend today</label>
+              <label for="absence-today">
+                I won't attend today
+                <span class="date-hint" id="today-hint"></span>
+              </label>
             </div>
             <div class="radio-option" id="radio-opt-range" onclick="selectAbsenceType('range')">
               <input type="radio" name="absence-type" value="range" id="absence-range" />
-              <label for="absence-range">I won't attend for multiple days</label>
+              <label for="absence-range">
+                I won't attend for multiple days
+                <span class="date-hint">Select a date range below</span>
+              </label>
             </div>
           </div>
 
@@ -376,6 +432,8 @@
               <input type="date" id="date-to" class="input" />
             </div>
           </div>
+
+          <div class="range-summary" id="range-summary"></div>
         </div>
 
         <div class="field">
@@ -417,19 +475,82 @@
     // MEMBER DATA - Auto-loaded from Apps Script
     // ========================================
     let members = []; // Will be filled with {name, mobile} objects
+    let loadAttempts = 0;
 
-    // Set today's date
+    // Day names and month names
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+    // Format date as "Tue, 28 May 2026"
+    function formatDateFull(d) {
+      return dayNames[d.getDay()].substring(0,3) + ", " + 
+             String(d.getDate()).padStart(2, '0') + " " + 
+             monthNames[d.getMonth()] + " " + 
+             d.getFullYear();
+    }
+
+    // Format date as "28 May 2026"
+    function formatDateShort(d) {
+      return String(d.getDate()).padStart(2, '0') + " " + 
+             monthNames[d.getMonth()] + " " + 
+             d.getFullYear();
+    }
+
+    // Set today's date in UI
     function setToday() {
       const today = new Date();
-      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      const dd = String(today.getDate()).padStart(2, '0');
-      const display = dd + " " + monthNames[today.getMonth()] + " " + today.getFullYear();
+      const display = formatDateFull(today);
       document.getElementById('today-date-1').textContent = display;
-      // Default from/to dates for range
+      document.getElementById('today-hint').textContent = display;
+
+      // Default range to tomorrow
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
-      document.getElementById('date-from').value = tomorrow.toISOString().split('T')[0];
-      document.getElementById('date-to').value = tomorrow.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      
+      const dateFrom = document.getElementById('date-from');
+      const dateTo = document.getElementById('date-to');
+      dateFrom.value = tomorrowStr;
+      dateTo.value = tomorrowStr;
+      dateFrom.min = todayStr; // Cannot pick past dates
+      dateTo.min = todayStr;
+      
+      dateFrom.addEventListener('change', updateRangeSummary);
+      dateTo.addEventListener('change', updateRangeSummary);
+    }
+
+    // Update range summary text
+    function updateRangeSummary() {
+      const type = document.querySelector('input[name="absence-type"]:checked').value;
+      const summary = document.getElementById('range-summary');
+      
+      if (type !== 'range') {
+        summary.classList.remove('visible');
+        return;
+      }
+
+      const fromStr = document.getElementById('date-from').value;
+      const toStr = document.getElementById('date-to').value;
+      
+      if (!fromStr || !toStr) {
+        summary.classList.remove('visible');
+        return;
+      }
+      
+      const fromDate = new Date(fromStr);
+      const toDate = new Date(toStr);
+      
+      if (fromDate > toDate) {
+        summary.innerHTML = '<strong>⚠️ Error:</strong> "From" date must be on or before "To" date';
+        summary.classList.add('visible');
+        return;
+      }
+
+      const days = Math.round((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
+      summary.innerHTML = '<strong>You are reporting absence for ' + days + ' day' + (days > 1 ? 's' : '') + ':</strong><br>' + 
+                         formatDateShort(fromDate) + ' to ' + formatDateShort(toDate);
+      summary.classList.add('visible');
     }
 
     // Switch between attendance and absence modes
@@ -438,6 +559,9 @@
       document.querySelector('[data-mode="' + mode + '"]').classList.add('active');
       document.getElementById('form-attendance').style.display = mode === 'attendance' ? 'block' : 'none';
       document.getElementById('form-absence').style.display = mode === 'absence' ? 'block' : 'none';
+      // Hide any status messages when switching
+      document.getElementById('status-att').className = 'status';
+      document.getElementById('status-abs').className = 'status';
     }
 
     // Select absence type (today or range)
@@ -447,31 +571,49 @@
       document.getElementById('absence-today').checked = type === 'today';
       document.getElementById('absence-range').checked = type === 'range';
       document.getElementById('date-range-block').classList.toggle('visible', type === 'range');
+      updateRangeSummary();
     }
 
-    // Load members from Apps Script
+    // Load members from Apps Script with auto-retry
     async function loadMembers() {
+      loadAttempts++;
+      document.getElementById('conn-warn').classList.add('visible');
+      
       try {
-        const res = await fetch(APPS_SCRIPT_URL + '?action=getMembers');
+        // Add timestamp to prevent API caching
+        const res = await fetch(APPS_SCRIPT_URL + '?action=getMembers&t=' + Date.now());
         const data = await res.json();
-        if (data.members) {
+        
+        if (data.members && data.members.length > 0) {
           members = data.members;
+          document.getElementById('conn-warn').classList.remove('visible');
+        } else {
+          if (loadAttempts < 3) {
+            setTimeout(loadMembers, 2000);
+          } else {
+            document.getElementById('conn-warn').innerHTML = 
+              '⚠️ Could not load member list. Please refresh the page or contact Sneha.';
+          }
         }
       } catch (err) {
         console.error('Failed to load members:', err);
+        if (loadAttempts < 3) {
+          setTimeout(loadMembers, 2000);
+        } else {
+          document.getElementById('conn-warn').innerHTML = 
+            '⚠️ Network issue. Please check your internet and refresh the page.';
+        }
       }
     }
 
-    // Setup autocomplete for a given input
-    function setupAutocomplete(inputId, suggestionsId, mobileId) {
+    // Setup autocomplete for NAME inputs
+    function setupNameAutocomplete(inputId, suggestionsId) {
       const input = document.getElementById(inputId);
       const suggestions = document.getElementById(suggestionsId);
-      const mobileInput = document.getElementById(mobileId);
       let matches = [];
 
       input.addEventListener('input', () => {
         const query = input.value.toLowerCase().trim();
-        mobileInput.value = ''; // Clear mobile when typing
         
         if (query.length < 2) {
           suggestions.classList.remove('visible');
@@ -489,10 +631,10 @@
           return;
         }
 
+        // Only show names - no mobile numbers in suggestions
         suggestions.innerHTML = matches.map((m, i) => 
           '<div class="suggestion-item" data-index="' + i + '">' +
           '<div>' + escapeHtml(m.name) + '</div>' +
-          (m.mobile ? '<div class="mobile">' + escapeHtml(m.mobile) + '</div>' : '') +
           '</div>'
         ).join('');
         suggestions.classList.add('visible');
@@ -500,7 +642,6 @@
         suggestions.querySelectorAll('.suggestion-item').forEach((item, i) => {
           item.addEventListener('click', () => {
             input.value = matches[i].name;
-            mobileInput.value = matches[i].mobile || '';
             suggestions.classList.remove('visible');
           });
         });
@@ -515,6 +656,105 @@
           suggestions.classList.add('visible');
         }
       });
+    }
+
+    // Setup autocomplete for MOBILE inputs (requires name to be selected first)
+    function setupMobileAutocomplete(inputId, suggestionsId, nameInputId) {
+      const input = document.getElementById(inputId);
+      const suggestions = document.getElementById(suggestionsId);
+      const nameInput = document.getElementById(nameInputId);
+      let matches = [];
+
+      // Block typing if name is not filled
+      input.addEventListener('focus', () => {
+        const enteredName = nameInput.value.trim();
+        if (!enteredName) {
+          input.blur();
+          alert('Please fill in this order:\n\n1. Your Name\n2. Mobile Number\n3. Batch\n\nPlease enter your name first.');
+          nameInput.focus();
+          return;
+        }
+        if (input.value.trim().length >= 2 && suggestions.innerHTML) {
+          suggestions.classList.add('visible');
+        }
+      });
+
+      input.addEventListener('input', () => {
+        const query = input.value.replace(/\D/g, '').trim();
+        
+        if (query.length < 2) {
+          suggestions.classList.remove('visible');
+          suggestions.innerHTML = '';
+          return;
+        }
+
+        // Show all matching mobiles - members will see only digits, no names
+        matches = members.filter(m => {
+          if (!m.mobile) return false;
+          const mobileNorm = normalizeMobile(m.mobile);
+          return mobileNorm.startsWith(query);
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+          suggestions.innerHTML = '<div class="suggestions-empty">No matching mobile found</div>';
+          suggestions.classList.add('visible');
+          return;
+        }
+
+        // Show only the mobile number - NOT the name
+        suggestions.innerHTML = matches.map((m, i) => 
+          '<div class="suggestion-item" data-index="' + i + '">' +
+          '<div>' + escapeHtml(normalizeMobile(m.mobile)) + '</div>' +
+          '</div>'
+        ).join('');
+        suggestions.classList.add('visible');
+
+        suggestions.querySelectorAll('.suggestion-item').forEach((item, i) => {
+          item.addEventListener('click', () => {
+            input.value = normalizeMobile(matches[i].mobile);
+            suggestions.classList.remove('visible');
+          });
+        });
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => suggestions.classList.remove('visible'), 200);
+      });
+    }
+
+    // Normalize mobile - strip spaces, +91, dashes, leading 0
+    function normalizeMobile(mobile) {
+      if (!mobile) return '';
+      let digits = String(mobile).replace(/\D/g, '');
+      if (digits.length === 12 && digits.startsWith('91')) digits = digits.substring(2);
+      if (digits.length === 11 && digits.startsWith('0')) digits = digits.substring(1);
+      return digits;
+    }
+
+    // Verify name + mobile come from the same member record in Fitness Studio Tracker
+    // Returns {valid: true} OR {valid: false, error: "..."}
+    function verifyNameAndMobile(name, mobile) {
+      const member = members.find(m => m.name === name);
+      if (!member) {
+        return { valid: false, error: 'Member not found. Please select your name from suggestions.' };
+      }
+
+      const enteredNorm = normalizeMobile(mobile);
+      if (enteredNorm.length !== 10) {
+        return { valid: false, error: 'Please enter a valid 10-digit mobile number.' };
+      }
+
+      // Fallback: if member has no mobile on record yet (Sneha hasn't filled it)
+      if (!member.mobile || String(member.mobile).trim() === '') {
+        return { valid: true };
+      }
+
+      const recordNorm = normalizeMobile(member.mobile);
+      if (enteredNorm !== recordNorm) {
+        return { valid: false, error: 'Name and mobile number do not match our records. Please check and try again, or contact Sneha.' };
+      }
+
+      return { valid: true };
     }
 
     function escapeHtml(str) {
@@ -534,11 +774,23 @@
       const mobile = document.getElementById('mobile-att').value.trim();
       const batch = document.getElementById('batch-att').value;
 
+      if (members.length === 0) { 
+        showStatus('status-att', 'error', 'Member list not loaded yet. Please wait or refresh.'); 
+        return; 
+      }
       if (!name) { showStatus('status-att', 'error', 'Please enter your name'); return; }
       if (!members.some(m => m.name === name)) {
         showStatus('status-att', 'error', 'Please select your name from suggestions');
         return;
       }
+      if (!mobile) { showStatus('status-att', 'error', 'Please enter your mobile number'); return; }
+      
+      const check = verifyNameAndMobile(name, mobile);
+      if (!check.valid) {
+        showStatus('status-att', 'error', check.error);
+        return;
+      }
+      
       if (!batch) { showStatus('status-att', 'error', 'Please select your batch'); return; }
 
       showStatus('status-att', 'loading', 'Marking attendance...');
@@ -547,7 +799,7 @@
         const formData = new URLSearchParams();
         formData.append('action', 'attendance');
         formData.append('name', name);
-        formData.append('mobile', mobile);
+        formData.append('mobile', normalizeMobile(mobile));
         formData.append('batch', batch);
 
         const res = await fetch(APPS_SCRIPT_URL, {
@@ -561,6 +813,8 @@
           document.getElementById('name-att').value = '';
           document.getElementById('mobile-att').value = '';
           document.getElementById('batch-att').value = '';
+        } else if (data.duplicate) {
+          showStatus('status-att', 'error', '⚠️ You have already marked attendance today.');
         } else {
           showStatus('status-att', 'error', data.error || 'Submission failed. Please try again.');
         }
@@ -575,11 +829,23 @@
       const batch = document.getElementById('batch-abs').value;
       const absenceType = document.querySelector('input[name="absence-type"]:checked').value;
 
+      if (members.length === 0) { 
+        showStatus('status-abs', 'error', 'Member list not loaded yet. Please wait or refresh.'); 
+        return; 
+      }
       if (!name) { showStatus('status-abs', 'error', 'Please enter your name'); return; }
       if (!members.some(m => m.name === name)) {
         showStatus('status-abs', 'error', 'Please select your name from suggestions');
         return;
       }
+      if (!mobile) { showStatus('status-abs', 'error', 'Please enter your mobile number'); return; }
+      
+      const check = verifyNameAndMobile(name, mobile);
+      if (!check.valid) {
+        showStatus('status-abs', 'error', check.error);
+        return;
+      }
+      
       if (!batch) { showStatus('status-abs', 'error', 'Please select your batch'); return; }
 
       let datesToSubmit = [];
@@ -596,10 +862,9 @@
         const fromDate = new Date(fromStr);
         const toDate = new Date(toStr);
         if (fromDate > toDate) {
-          showStatus('status-abs', 'error', '"From" date must be before "To" date');
+          showStatus('status-abs', 'error', '"From" date must be on or before "To" date');
           return;
         }
-        // Generate all dates in range
         const current = new Date(fromDate);
         while (current <= toDate) {
           datesToSubmit.push(current.toISOString().split('T')[0]);
@@ -611,13 +876,14 @@
         }
       }
 
-      showStatus('status-abs', 'loading', 'Submitting absence for ' + datesToSubmit.length + ' day(s)...');
+      const dayCount = datesToSubmit.length;
+      showStatus('status-abs', 'loading', 'Submitting absence for ' + dayCount + ' day' + (dayCount > 1 ? 's' : '') + '...');
 
       try {
         const formData = new URLSearchParams();
         formData.append('action', 'absence');
         formData.append('name', name);
-        formData.append('mobile', mobile);
+        formData.append('mobile', normalizeMobile(mobile));
         formData.append('batch', batch);
         formData.append('dates', datesToSubmit.join(','));
 
@@ -628,9 +894,14 @@
         const data = await res.json();
         
         if (data.success) {
-          const msg = datesToSubmit.length === 1 
-            ? '✓ Absence reported successfully!'
-            : '✓ Absence reported for ' + datesToSubmit.length + ' days!';
+          let msg;
+          if (data.skipped && data.skipped > 0) {
+            msg = '✓ Absence reported for ' + data.added + ' day(s). ' + data.skipped + ' day(s) were already marked.';
+          } else {
+            msg = dayCount === 1 
+              ? '✓ Absence reported successfully for today!'
+              : '✓ Absence reported successfully for ' + dayCount + ' days!';
+          }
           showStatus('status-abs', 'success', msg);
           document.getElementById('name-abs').value = '';
           document.getElementById('mobile-abs').value = '';
@@ -647,8 +918,10 @@
     // Initialize
     setToday();
     loadMembers();
-    setupAutocomplete('name-att', 'suggestions-att', 'mobile-att');
-    setupAutocomplete('name-abs', 'suggestions-abs', 'mobile-abs');
+    setupNameAutocomplete('name-att', 'suggestions-att');
+    setupNameAutocomplete('name-abs', 'suggestions-abs');
+    setupMobileAutocomplete('mobile-att', 'mob-suggestions-att', 'name-att');
+    setupMobileAutocomplete('mobile-abs', 'mob-suggestions-abs', 'name-abs');
   </script>
 
 </body>
