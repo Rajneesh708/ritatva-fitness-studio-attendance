@@ -360,7 +360,7 @@
         </div>
 
         <div class="field">
-          <label class="label">Mobile Number <span style="color:#C73E1D; font-weight:400;">(must match our records)</span></label>
+          <label class="label">Mobile Number</label>
           <input type="tel" id="mobile-att" class="input" inputmode="numeric" autocomplete="off" placeholder="Type 2-4 digits to search..." />
           <div class="suggestions" id="mob-suggestions-att"></div>
         </div>
@@ -398,7 +398,7 @@
         </div>
 
         <div class="field">
-          <label class="label">Mobile Number <span style="color:#C73E1D; font-weight:400;">(must match our records)</span></label>
+          <label class="label">Mobile Number</label>
           <input type="tel" id="mobile-abs" class="input" inputmode="numeric" autocomplete="off" placeholder="Type 2-4 digits to search..." />
           <div class="suggestions" id="mob-suggestions-abs"></div>
         </div>
@@ -733,27 +733,41 @@
 
     // Verify name + mobile come from the same member record in Fitness Studio Tracker
     // Returns {valid: true} OR {valid: false, error: "..."}
+    // Three scenarios handled:
+    //   1. Member has mobile + entered empty → "Please enter your mobile number."
+    //   2. Member has mobile + entered wrong → "Name and mobile number do not match..."
+    //   3. Member has no mobile + entered something → "Our records do not have mobile number for [Name]..."
+    //   Pass: member has mobile + matches; OR member has no mobile + field empty
     function verifyNameAndMobile(name, mobile) {
       const member = members.find(m => m.name === name);
       if (!member) {
         return { valid: false, error: 'Member not found. Please select your name from suggestions.' };
       }
 
+      const hasMobileOnFile = member.mobile && String(member.mobile).trim() !== '';
       const enteredNorm = normalizeMobile(mobile);
-      if (enteredNorm.length !== 10) {
-        return { valid: false, error: 'Please enter a valid 10-digit mobile number.' };
-      }
+      const enteredEmpty = enteredNorm === '';
 
-      // Fallback: if member has no mobile on record yet (Sneha hasn't filled it)
-      if (!member.mobile || String(member.mobile).trim() === '') {
+      // Case A: Member has mobile on file
+      if (hasMobileOnFile) {
+        if (enteredEmpty) {
+          return { valid: false, error: 'Please enter your mobile number.' };
+        }
+        if (enteredNorm.length !== 10) {
+          return { valid: false, error: 'Name and mobile number do not match our records. Please correct whichever is wrong — name or mobile — and click on submit.' };
+        }
+        const recordNorm = normalizeMobile(member.mobile);
+        if (enteredNorm !== recordNorm) {
+          return { valid: false, error: 'Name and mobile number do not match our records. Please correct whichever is wrong — name or mobile — and click on submit.' };
+        }
         return { valid: true };
       }
 
-      const recordNorm = normalizeMobile(member.mobile);
-      if (enteredNorm !== recordNorm) {
-        return { valid: false, error: 'Name and mobile number do not match our records. Please check and try again, or contact Sneha.' };
+      // Case B: Member has NO mobile on file
+      if (!enteredEmpty) {
+        return { valid: false, error: 'Our records do not have mobile number for ' + name + '. Please keep the mobile field empty to submit. Contact Sneha if you would like your number added.' };
       }
-
+      // No mobile on file + field empty → pass
       return { valid: true };
     }
 
@@ -783,7 +797,6 @@
         showStatus('status-att', 'error', 'Please select your name from suggestions');
         return;
       }
-      if (!mobile) { showStatus('status-att', 'error', 'Please enter your mobile number'); return; }
       
       const check = verifyNameAndMobile(name, mobile);
       if (!check.valid) {
@@ -838,7 +851,6 @@
         showStatus('status-abs', 'error', 'Please select your name from suggestions');
         return;
       }
-      if (!mobile) { showStatus('status-abs', 'error', 'Please enter your mobile number'); return; }
       
       const check = verifyNameAndMobile(name, mobile);
       if (!check.valid) {
