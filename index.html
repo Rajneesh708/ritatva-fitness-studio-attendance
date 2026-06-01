@@ -335,7 +335,7 @@
     </div>
 
     <div class="conn-warn" id="conn-warn">
-      ⚠️ Loading member list... If this stays for more than 10 seconds, please refresh the page.
+      ⏳ Loading member list... This can take up to 20 seconds on first load. Please wait — do NOT refresh.
     </div>
 
     <div class="mode-tabs">
@@ -476,6 +476,8 @@
     // ========================================
     let members = []; // Will be filled with {name, mobile} objects
     let loadAttempts = 0;
+    const MAX_ATTEMPTS = 8;
+    const RETRY_DELAYS = [3000, 3000, 4000, 4000, 5000, 5000, 5000];
 
     // Day names and month names
     const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -588,8 +590,8 @@
           members = data.members;
           document.getElementById('conn-warn').classList.remove('visible');
         } else {
-          if (loadAttempts < 3) {
-            setTimeout(loadMembers, 2000);
+          if (loadAttempts < MAX_ATTEMPTS) {
+            setTimeout(loadMembers, RETRY_DELAYS[loadAttempts - 1] || 5000);
           } else {
             document.getElementById('conn-warn').innerHTML = 
               '⚠️ Could not load member list. Please refresh the page or contact Sneha.';
@@ -597,8 +599,8 @@
         }
       } catch (err) {
         console.error('Failed to load members:', err);
-        if (loadAttempts < 3) {
-          setTimeout(loadMembers, 2000);
+        if (loadAttempts < MAX_ATTEMPTS) {
+          setTimeout(loadMembers, RETRY_DELAYS[loadAttempts - 1] || 5000);
         } else {
           document.getElementById('conn-warn').innerHTML = 
             '⚠️ Network issue. Please check your internet and refresh the page.';
