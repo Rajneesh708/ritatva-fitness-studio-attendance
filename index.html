@@ -811,13 +811,15 @@
       showStatus('status-att', 'loading', 'Marking attendance...');
 
       try {
-        const attParams = new URLSearchParams();
-        attParams.append('action', 'attendance');
-        attParams.append('name', name);
-        attParams.append('mobile', normalizeMobile(mobile));
-        attParams.append('batch', batch);
+        const formData = new URLSearchParams();
+        formData.append('action', 'attendance');
+        formData.append('name', name);
+        formData.append('mobile', normalizeMobile(mobile));
+        formData.append('batch', batch);
 
-        const res = await fetch(APPS_SCRIPT_URL + '?' + attParams.toString());
+        const res = await fetch(APPS_SCRIPT_URL + '?action=attendance', {
+          method: 'POST',
+          body: formData
         });
         const data = await res.json();
         
@@ -892,14 +894,16 @@
       showStatus('status-abs', 'loading', 'Submitting absence for ' + dayCount + ' day' + (dayCount > 1 ? 's' : '') + '...');
 
       try {
-        const absParams = new URLSearchParams();
-        absParams.append('action', 'absence');
-        absParams.append('name', name);
-        absParams.append('mobile', normalizeMobile(mobile));
-        absParams.append('batch', batch);
-        absParams.append('dates', datesToSubmit.join(','));
+        const formData = new URLSearchParams();
+        formData.append('action', 'absence');
+        formData.append('name', name);
+        formData.append('mobile', normalizeMobile(mobile));
+        formData.append('batch', batch);
+        formData.append('dates', datesToSubmit.join(','));
 
-        const res = await fetch(APPS_SCRIPT_URL + '?' + absParams.toString());
+        const res = await fetch(APPS_SCRIPT_URL + '?action=absence', {
+          method: 'POST',
+          body: formData
         });
         const data = await res.json();
         
