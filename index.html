@@ -469,7 +469,7 @@
     // ========================================
     // CONFIGURATION - PASTE YOUR APPS SCRIPT URL HERE
     // ========================================
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbycCHMczSJnIcP7ae6lD2aZCgGh7ajaTzeAlXFglgontnFNTdXjoNgnM3xikW22PK7-/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8jPBJTarJiyWMyUJa7tiUP3JsQRDT9oJ886EkWlaExNdHf6E1IDqnslSMkF6qpIdZ/exec";
 
     // ========================================
     // MEMBER DATA - Auto-loaded from Apps Script
@@ -817,7 +817,7 @@
         formData.append('mobile', normalizeMobile(mobile));
         formData.append('batch', batch);
 
-        const res = await fetch(APPS_SCRIPT_URL + "?action=attendance", {
+        const res = await fetch(APPS_SCRIPT_URL + '?action=attendance', {
           method: 'POST',
           body: formData
         });
@@ -901,7 +901,7 @@
         formData.append('batch', batch);
         formData.append('dates', datesToSubmit.join(','));
 
-        const res = await fetch(APPS_SCRIPT_URL + "?action=absence", {
+        const res = await fetch(APPS_SCRIPT_URL + '?action=absence', {
           method: 'POST',
           body: formData
         });
