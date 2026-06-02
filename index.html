@@ -817,7 +817,7 @@
         formData.append('mobile', normalizeMobile(mobile));
         formData.append('batch', batch);
 
-        const res = await fetch(APPS_SCRIPT_URL, {
+        const res = await fetch(APPS_SCRIPT_URL + "?action=attendance", {
           method: 'POST',
           body: formData
         });
@@ -901,7 +901,7 @@
         formData.append('batch', batch);
         formData.append('dates', datesToSubmit.join(','));
 
-        const res = await fetch(APPS_SCRIPT_URL, {
+        const res = await fetch(APPS_SCRIPT_URL + "?action=absence", {
           method: 'POST',
           body: formData
         });
