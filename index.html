@@ -383,7 +383,7 @@
           </select>
         </div>
 
-        <button class="submit-btn" onclick="submitAttendance()">Mark My Attendance ✓</button>
+        <button id="submit-att" class="submit-btn" onclick="submitAttendance()">Mark My Attendance ✓</button>
         <div class="status" id="status-att"></div>
       </div>
 
@@ -454,7 +454,7 @@
           </select>
         </div>
 
-        <button class="submit-btn" onclick="submitAbsence()">Submit Absence</button>
+        <button id="submit-abs" class="submit-btn" onclick="submitAbsence()">Submit Absence</button>
         <div class="status" id="status-abs"></div>
       </div>
     </div>
@@ -810,6 +810,9 @@
 
       showStatus('status-att', 'loading', 'Marking attendance...');
 
+      const submitBtn = document.getElementById('submit-att');
+      submitBtn.disabled = true;
+
       try {
         const formData = new URLSearchParams();
         formData.append('action', 'attendance');
@@ -835,6 +838,8 @@
         }
       } catch (err) {
         showStatus('status-att', 'error', 'Network error. Please check your connection and try again.');
+      } finally {
+        submitBtn.disabled = false;
       }
     }
 
@@ -893,6 +898,9 @@
       const dayCount = datesToSubmit.length;
       showStatus('status-abs', 'loading', 'Submitting absence for ' + dayCount + ' day' + (dayCount > 1 ? 's' : '') + '...');
 
+      const submitBtn = document.getElementById('submit-abs');
+      submitBtn.disabled = true;
+
       try {
         const formData = new URLSearchParams();
         formData.append('action', 'absence');
@@ -926,6 +934,8 @@
         }
       } catch (err) {
         showStatus('status-abs', 'error', 'Network error. Please check your connection and try again.');
+      } finally {
+        submitBtn.disabled = false;
       }
     }
 
