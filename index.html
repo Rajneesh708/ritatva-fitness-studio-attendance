@@ -812,6 +812,7 @@
 
       const submitBtn = document.getElementById('submit-att');
       submitBtn.disabled = true;
+      let succeeded = false;
 
       try {
         const formData = new URLSearchParams();
@@ -827,6 +828,7 @@
         const data = await res.json();
         
         if (data.success) {
+          succeeded = true;
           showStatus('status-att', 'success', '✓ Attendance marked successfully!');
           document.getElementById('name-att').value = '';
           document.getElementById('mobile-att').value = '';
@@ -839,7 +841,13 @@
       } catch (err) {
         showStatus('status-att', 'error', 'Network error. Please check your connection and try again.');
       } finally {
-        submitBtn.disabled = false;
+        // On success, keep the button locked briefly so a reflex double-tap
+        // can't fire a second (pointless) request; otherwise re-enable now.
+        if (succeeded) {
+          setTimeout(function () { submitBtn.disabled = false; }, 2000);
+        } else {
+          submitBtn.disabled = false;
+        }
       }
     }
 
@@ -900,6 +908,7 @@
 
       const submitBtn = document.getElementById('submit-abs');
       submitBtn.disabled = true;
+      let succeeded = false;
 
       try {
         const formData = new URLSearchParams();
@@ -916,9 +925,12 @@
         const data = await res.json();
         
         if (data.success) {
+          succeeded = true;
           let msg;
-          if (data.skipped && data.skipped > 0) {
-            msg = '✓ Absence reported for ' + data.added + ' day(s). ' + data.skipped + ' day(s) were already marked.';
+          if ((data.skipped && data.skipped > 0) || (data.invalid && data.invalid > 0)) {
+            msg = '✓ Absence reported for ' + data.added + ' day(s).';
+            if (data.skipped && data.skipped > 0) msg += ' ' + data.skipped + ' already marked.';
+            if (data.invalid && data.invalid > 0) msg += ' ' + data.invalid + ' had an invalid date.';
           } else {
             msg = dayCount === 1 
               ? '✓ Absence reported successfully for today!'
@@ -935,7 +947,11 @@
       } catch (err) {
         showStatus('status-abs', 'error', 'Network error. Please check your connection and try again.');
       } finally {
-        submitBtn.disabled = false;
+        if (succeeded) {
+          setTimeout(function () { submitBtn.disabled = false; }, 2000);
+        } else {
+          submitBtn.disabled = false;
+        }
       }
     }
 
