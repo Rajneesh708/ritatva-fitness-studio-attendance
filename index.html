@@ -498,6 +498,20 @@
              d.getFullYear();
     }
 
+    // Build a yyyy-mm-dd string from a Date using LOCAL parts (TZ-safe; avoids
+    // the UTC shift that toISOString() can introduce around midnight in IST).
+    function localDateStr(d) {
+      return d.getFullYear() + '-' +
+             String(d.getMonth() + 1).padStart(2, '0') + '-' +
+             String(d.getDate()).padStart(2, '0');
+    }
+
+    // Parse a yyyy-mm-dd string into a LOCAL-midnight Date.
+    function parseLocalDate(s) {
+      const p = String(s).split('-');
+      return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+    }
+
     // Set today's date in UI
     function setToday() {
       const today = new Date();
@@ -876,9 +890,11 @@
       if (!batch) { showStatus('status-abs', 'error', 'Please select your batch'); return; }
 
       let datesToSubmit = [];
+      const todayStr = localDateStr(new Date());
+      const todayMidnight = parseLocalDate(todayStr);
+
       if (absenceType === 'today') {
-        const today = new Date();
-        datesToSubmit.push(today.toISOString().split('T')[0]);
+        datesToSubmit.push(todayStr);
       } else {
         const fromStr = document.getElementById('date-from').value;
         const toStr = document.getElementById('date-to').value;
@@ -886,15 +902,21 @@
           showStatus('status-abs', 'error', 'Please select both From and To dates'); 
           return; 
         }
-        const fromDate = new Date(fromStr);
-        const toDate = new Date(toStr);
+        const fromDate = parseLocalDate(fromStr);
+        const toDate = parseLocalDate(toStr);
         if (fromDate > toDate) {
           showStatus('status-abs', 'error', '"From" date must be on or before "To" date');
           return;
         }
+        // Block back-dated absence: you cannot report absence for a day that
+        // has already passed. Only today or future dates are allowed.
+        if (fromDate < todayMidnight) {
+          showStatus('status-abs', 'error', 'You cannot report absence for a date that has already passed. Please pick today or a future date.');
+          return;
+        }
         const current = new Date(fromDate);
         while (current <= toDate) {
-          datesToSubmit.push(current.toISOString().split('T')[0]);
+          datesToSubmit.push(localDateStr(current));
           current.setDate(current.getDate() + 1);
         }
         if (datesToSubmit.length > 60) {
@@ -927,9 +949,10 @@
         if (data.success) {
           succeeded = true;
           let msg;
-          if ((data.skipped && data.skipped > 0) || (data.invalid && data.invalid > 0)) {
+          if ((data.skipped && data.skipped > 0) || (data.invalid && data.invalid > 0) || (data.past && data.past > 0)) {
             msg = '✓ Absence reported for ' + data.added + ' day(s).';
             if (data.skipped && data.skipped > 0) msg += ' ' + data.skipped + ' already marked.';
+            if (data.past && data.past > 0) msg += ' ' + data.past + ' past date(s) skipped.';
             if (data.invalid && data.invalid > 0) msg += ' ' + data.invalid + ' had an invalid date.';
           } else {
             msg = dayCount === 1 
