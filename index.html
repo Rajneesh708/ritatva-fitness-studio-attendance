@@ -755,36 +755,35 @@
     //   3. Member has no mobile + entered something → "Our records do not have mobile number for [Name]..."
     //   Pass: member has mobile + matches; OR member has no mobile + field empty
     function verifyNameAndMobile(name, mobile) {
-      const member = members.find(m => m.name === name);
-      if (!member) {
+      // There may be MORE THAN ONE member with the same name (different
+      // mobiles). The pair is valid if it matches ANY one of them exactly.
+      const sameName = members.filter(m => m.name === name);
+      if (sameName.length === 0) {
         return { valid: false, error: 'Member not found. Please select your name from suggestions.' };
       }
 
-      const hasMobileOnFile = member.mobile && String(member.mobile).trim() !== '';
       const enteredNorm = normalizeMobile(mobile);
       const enteredEmpty = enteredNorm === '';
 
-      // Case A: Member has mobile on file
-      if (hasMobileOnFile) {
-        if (enteredEmpty) {
-          return { valid: false, error: 'Please enter your mobile number.' };
+      for (const member of sameName) {
+        const hasMobileOnFile = member.mobile && String(member.mobile).trim() !== '';
+        if (hasMobileOnFile && !enteredEmpty &&
+            normalizeMobile(member.mobile) === enteredNorm) {
+          return { valid: true };
         }
-        if (enteredNorm.length !== 10) {
-          return { valid: false, error: 'Name and mobile number do not match our records. Please correct whichever is wrong — name or mobile — and click on submit.' };
+        if (!hasMobileOnFile && enteredEmpty) {
+          return { valid: true };
         }
-        const recordNorm = normalizeMobile(member.mobile);
-        if (enteredNorm !== recordNorm) {
-          return { valid: false, error: 'Name and mobile number do not match our records. Please correct whichever is wrong — name or mobile — and click on submit.' };
-        }
-        return { valid: true };
       }
 
-      // Case B: Member has NO mobile on file
-      if (!enteredEmpty) {
+      const anyHasMobile = sameName.some(m => m.mobile && String(m.mobile).trim() !== '');
+      if (anyHasMobile && enteredEmpty) {
+        return { valid: false, error: 'Please enter your mobile number.' };
+      }
+      if (!anyHasMobile && !enteredEmpty) {
         return { valid: false, error: 'Our records do not have mobile number for ' + name + '. Please keep the mobile field empty to submit. Contact Sneha if you would like your number added.' };
       }
-      // No mobile on file + field empty → pass
-      return { valid: true };
+      return { valid: false, error: 'Name and mobile number do not match our records. Please correct whichever is wrong \u2014 name or mobile \u2014 and click on submit.' };
     }
 
     function escapeHtml(str) {
